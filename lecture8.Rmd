@@ -1,0 +1,94 @@
+---
+title: "Untitled"
+author: "Rebecca Silva"
+date: "5/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Linear Kernal 
+
+```{r}
+ctrl <- trainControl(method = "repeatedcv",
+                     repeats = 5,
+                     summaryFunction = twoClassSummary,
+                     classProbs = TRUE) 
+
+set.seed(1)
+svml.fit <- train(five_stars_cat ~  lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+                   data = data_cv, 
+                   subset = row_train_cv,
+                  method = "svmLinear2",
+                  preProcess = c("center", "scale"),
+                  tuneGrid = data.frame(cost = exp(seq(-5,1,len=30))),
+                  trControl = ctrl)
+
+ggplot(svml.fit, highlight = TRUE)
+```
+
+Train performance:
+```{r}
+pred.linear <- predict(svml.fit, newdata = data_cv[row_train,])# prediction is a class label 
+
+confusionMatrix(data = pred.linear, 
+                reference = data_cv$five_stars_cat[row_train])
+```
+
+The accurary is 0.8312 and Kappa value is 0.6448, meaning the model correctly intentifies the purchase brand for 83% of the predictions, and 65% after taking account of correctly identifying by chance. 
+
+Test performance: 
+```{r}
+pred.linear.test <- predict(svml.fit, newdata = OJ[-row_train,])
+
+
+confusionMatrix(data = pred.linear.test, 
+                reference = OJ$Purchase[-row_train])
+```
+
+The accurary is 0.833 and Kappa value is 0.6448, which is very similar to the training error rate. 
+
+
+## b)
+```{r}
+svmr.grid <- expand.grid(C = exp(seq(-1,4,len=10)),
+                         sigma = exp(seq(-6,-2,len=10)))
+library(kernlab)
+set.seed(1)             
+svmr.fit <- train(five_stars_cat ~  lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+                  data = data_cv, 
+                  subset = row_train_cv,
+                  method = "svmRadial",
+                  preProcess = c("center", "scale"),
+                  tuneGrid = svmr.grid,
+                  trControl = ctrl)
+
+ggplot(svmr.fit, highlight = TRUE)
+```
+
+```{r}
+pred.radial <- predict(svmr.fit, newdata = data_cv[row_train,])# prediction is a class label 
+
+confusionMatrix(data = pred.radial, 
+                reference = data_cv$five_stars_cat[row_train])
+```
+Train performance:
+
+The accurary is 0.8512 and Kappa value is 0.68, meaning the model correctly intentifies the purchase brand for 85% of the predictions, and 68% after taking account of correctly identifying by chance.
+
+Test performance: 
+```{r}
+pred.radial.test <- predict(svmr.fit, newdata = OJ[-row_train,])
+
+
+confusionMatrix(data = pred.radial.test, 
+                reference = OJ$Purchase[-row_train])
+```
+Test performance: 
+
+The accurary is 0.814 and Kappa value is 0.59.
+
+Conclusion: 
+I would choose radial svm to predict OJ brand because it produces a model with the best training performance. 

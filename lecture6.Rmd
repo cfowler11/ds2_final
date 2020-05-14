@@ -1,0 +1,173 @@
+---
+title: "Untitled"
+author: "Rebecca Silva"
+date: "5/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(glmnet)
+library(MASS)
+library(e1071)
+library(mlbench)
+library(pROC)
+library(AppliedPredictiveModeling)
+```
+
+uses enviroment from data_clean
+
+## Partition data (huge N)
+```{r}
+set.seed(1)
+row_train <- createDataPartition(y = data$five_stars,
+                                p = .8,
+                                list = FALSE)
+
+set.seed(1)
+row_train_cv <- createDataPartition(y = data$five_stars,
+                                p = .5,
+                                list = FALSE)
+```
+
+
+## Logistic Regression 
+
+```{r}
+log.fit <- glm(five_stars ~ neighbourhood_group + lat+ long+ room_type+ price+ minimum_nights + number_of_reviews + reviews_per_month + calculated_host_listings_count + availability_365, 
+               data = data[row_train,], 
+               family = binomial)
+summary(log.fit)
+```
+
+After fitting a logistic regression with all posible predictors (excluding host id's and last review date and neighborhood (bc over 200 levels) ), neighborhood groups, latitude, longitude, room types, number of reviews, and reviews per month are all significant predictors at alpha level 0.05. Caluculated_host_listings hount is significant at .10 level and the minimum number of night is not significant. 
+
+## (c)
+
+```{r}
+test.pred.prob <- predict(log.fit, 
+                          newdata = data[-row_train,],
+                          type = "response")
+
+test.pred <- rep("0", length(test.pred.prob))
+test.pred[test.pred.prob>0.5]  <- "1"  
+
+confusionMatrix(data = as.factor(test.pred),
+                reference = data[-row_train,]$five_stars,
+                positive = "1")
+```
+The confusion matrix can tell us many things. 
+
+For one, the overal fraction of correct predictions is ., implying that only about 56% of predictions were correct. 
+We can also get the sensitivity, specificity, ppv and npv from the matrix. The sensitivity of 0.88 indicates that the probability that the prediction for stars being five for observations that actually were five is .88. The specificity says that the probability of predicting not five stars when the true rating was not five stars is 0.63. 
+The number of true 5s over the number of predicted 5s is .87 and the number of true not 5s over the number of predicted 5s is 0.72.
+
+The Kappa value of 0.5223  indicates that our model pretty good and far better than what random change would predict. 
+
+# Remove two predictors that were not significant 
+
+```{r}
+log.fit2 <- glm(five_stars ~ neighbourhood_group + lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365, 
+               data = data[row_train,], 
+               family = binomial)
+summary(log.fit2)
+```
+
+## ROC curve
+```{r}
+roc.glm <- roc(data[-row_train, ]$five_stars, test.pred.prob) # test response, test prediction
+plot(roc.glm, legacy.axes = TRUE, print.auc = TRUE) 
+plot(smooth(roc.glm), col = 4, add = TRUE)
+```
+
+AUC = 0.844. very good 
+
+
+
+## LDA  
+
+```{r}
+lda.fit <- lda(five_stars ~ neighbourhood_group + lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+               data = data[row_train, ])
+```
+
+ROC Curve:
+```{r}
+lda.pred <- predict(lda.fit, newdata = data[-row_train,])
+
+roc.lda <- roc(data[-row_train,]$five_stars,
+               lda.pred$posterior[,2], 
+               levels = c("0", "1"))
+
+plot(roc.lda, legacy.axes = TRUE, print.auc = TRUE)
+```
+
+Using LDA, the AUC = 0.784.
+
+### QDA
+
+```{r}
+qda.fit <- qda(five_stars ~ neighbourhood_group + lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+               data = data[row_train, ])
+
+qda.pred <- predict(qda.fit, newdata = data[-row_train, ])
+roc.qda <- roc(data[-row_train, ]$five_stars,
+               qda.pred$posterior[,2], 
+               levels = c("0", "1"))
+
+plot(roc.qda, legacy.axes = TRUE, print.auc = TRUE)
+```
+
+Using QDA, AUC = .771.
+
+## KNN 
+
+```{r, warning=FALSE}
+# for caret
+ctrl <- trainControl(method = "repeatedcv",
+                     repeats = 5,
+                     summaryFunction = twoClassSummary,
+                     classProbs = TRUE) 
+ 
+data_cv = data %>% mutate(
+  five_stars_cat = ifelse(five_stars == "1","yes", "no" ), 
+  five_stars_cat = as.factor(five_stars_cat))
+
+
+
+set.seed(1)
+model.knn <- train(five_stars_cat ~  lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+                   data = data_cv, 
+                   subset = row_train_cv,
+                   method = "knn",
+                   preProcess = c("center","scale"),
+                   tuneGrid = data.frame(k = seq(1,100,by=5)),
+                   trControl = ctrl)
+
+#ggplot(model.knn)
+
+knn.pred <- predict(model.knn, newdata = data_cv[-row_train,], type = "prob")[,2]
+roc.knn <- roc(data_cv[-row_train,]$five_stars_cat, knn.pred, 
+               levels = c("no", "yes"))
+
+plot(roc.knn, legacy.axes = TRUE, print.auc = TRUE)
+
+```
+
+Using KNN, AUC = .867.
+
+Summary of results: 
+```{r}
+df = tibble(
+  "Model" = c("Logistic", "LDA", "QDA", "KNN"), 
+  "AUC" = c(0.844, 0.784, .771, .867))
+
+kable(df, "latex", booktabs = T, caption = "Model AUC")  %>%
+  kable_styling(position = "center", latex_options = "hold_position")
+```
+
+KNN has the best performance, maybe due to its flexibility, and logistic regression also has a high performance. Overall, an AUC score better than .80 implies that the probability that any random five star observation will have a higher probability than a non five star observation is 80%. 
+
+Therefore, when choosing between KNN and Logistic regression, we would choose the logistic regression model because it is more interpretable.  Unlike the KNN model, the logistic model allows us to understand better the relationship between the predictors and the response of whether the airbnb will get a 5 star response or not. 
+

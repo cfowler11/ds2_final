@@ -1,0 +1,26 @@
+---
+title: "Lecture 6 Models"
+author: "Rebecca Silva"
+date: "5/13/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+data = read.csv("./data/nyc_airbnb.csv")
+data = data %>% replace_na(list(review_scores_location = 0, reviews_per_month = 0)) 
+
+data = data %>%
+  mutate(stars = round(review_scores_location/2, 1), 
+         five_stars = as.factor(ifelse(stars > 4, 1, 0))) %>% select(-last_review)
+
+
+summary(data$five_stars)
+sum(is.na(data))
+data = na.omit(data)
+```
+
