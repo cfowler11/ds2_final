@@ -9,6 +9,19 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# data
+```{r}
+set.seed(1)
+row_train_cv <- createDataPartition(y = data$five_stars,
+                                p = .5,
+                                list = FALSE)
+data_cv = data %>% mutate(
+  five_stars_cat = ifelse(five_stars == "1","yes", "no" ), 
+  five_stars_cat = as.factor(five_stars_cat))
+
+```
+
+
 # Linear Kernal 
 
 ```{r}
@@ -18,7 +31,7 @@ ctrl <- trainControl(method = "repeatedcv",
                      classProbs = TRUE) 
 
 set.seed(1)
-svml.fit <- train(five_stars_cat ~  lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+svml.fit <- train(five_stars_cat ~ neighbourhood_group + room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
                    data = data_cv, 
                    subset = row_train_cv,
                   method = "svmLinear2",
@@ -27,6 +40,16 @@ svml.fit <- train(five_stars_cat ~  lat+ long+ room_type+ price + number_of_revi
                   trControl = ctrl)
 
 ggplot(svml.fit, highlight = TRUE)
+
+
+### try TUNE 
+library(e1071)
+set.seed(1)
+linear.tune <- tune.svm(five_stars_cat ~ neighbourhood_group + room_type+ price + number_of_reviews + reviews_per_month  + availability_365, 
+                        data = data_cv[row_train,], 
+                        kernel = "linear", 
+                        cost = exp(seq(-5,0,len=20)))
+summary(linear.tune)
 ```
 
 Train performance:

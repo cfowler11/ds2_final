@@ -88,7 +88,7 @@ AUC = 0.844. very good
 ## LDA  
 
 ```{r}
-lda.fit <- lda(five_stars ~ neighbourhood_group + lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+lda.fit <- lda(five_stars ~ neighbourhood_group + room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
                data = data[row_train, ])
 ```
 
@@ -103,12 +103,12 @@ roc.lda <- roc(data[-row_train,]$five_stars,
 plot(roc.lda, legacy.axes = TRUE, print.auc = TRUE)
 ```
 
-Using LDA, the AUC = 0.784.
+Using LDA, the AUC = 0.783.
 
 ### QDA
 
 ```{r}
-qda.fit <- qda(five_stars ~ neighbourhood_group + lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+qda.fit <- qda(five_stars ~ neighbourhood_group+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
                data = data[row_train, ])
 
 qda.pred <- predict(qda.fit, newdata = data[-row_train, ])
@@ -119,7 +119,7 @@ roc.qda <- roc(data[-row_train, ]$five_stars,
 plot(roc.qda, legacy.axes = TRUE, print.auc = TRUE)
 ```
 
-Using QDA, AUC = .771.
+Using QDA, AUC = .772.
 
 ## KNN 
 
@@ -137,7 +137,7 @@ data_cv = data %>% mutate(
 
 
 set.seed(1)
-model.knn <- train(five_stars_cat ~  lat+ long+ room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
+model.knn <- train(five_stars_cat ~ neighbourhood_group + room_type+ price + number_of_reviews + reviews_per_month  + availability_365,
                    data = data_cv, 
                    subset = row_train_cv,
                    method = "knn",
@@ -155,13 +155,13 @@ plot(roc.knn, legacy.axes = TRUE, print.auc = TRUE)
 
 ```
 
-Using KNN, AUC = .867.
+Using KNN, AUC = .899.
 
 Summary of results: 
 ```{r}
 df = tibble(
   "Model" = c("Logistic", "LDA", "QDA", "KNN"), 
-  "AUC" = c(0.844, 0.784, .771, .867))
+  "AUC" = c(0.844, 0.783, .772, .899))
 
 kable(df, "latex", booktabs = T, caption = "Model AUC")  %>%
   kable_styling(position = "center", latex_options = "hold_position")
