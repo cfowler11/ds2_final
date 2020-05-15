@@ -8,6 +8,7 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(rsample)
 ```
 
 ```{r}
@@ -22,5 +23,15 @@ data = data %>%
 summary(data$five_stars)
 sum(is.na(data))
 data = na.omit(data)
+
+data_cv = data %>% mutate(
+  five_stars_cat = ifelse(five_stars == "1","yes", "no" ), 
+  five_stars_cat = as.factor(five_stars_cat))
+
+split_data <- initial_split(data_cv, prop = 0.5)
+
+train_data <- training(split_data)
+
+test_data <- testing(split_data)
 ```
 
