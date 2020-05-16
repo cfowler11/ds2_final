@@ -28,6 +28,7 @@ data_cv = data %>% mutate(
   five_stars_cat = ifelse(five_stars == "1","yes", "no" ), 
   five_stars_cat = as.factor(five_stars_cat))
 
+set.seed(1)
 split_data <- initial_split(data_cv, prop = 0.5)
 
 train_data <- training(split_data)
